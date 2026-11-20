@@ -471,7 +471,12 @@ def lookup(taxon, force_sources, attempted, wanted=("nuclear",)):
         "hit" if any(group["status"] == "matched" for group in groups)
         else "candidate" if groups else "incomplete" if incomplete else "no_hit"
     )
+    matched_types = {row.get("sequence_type", "assembly_unverified") for row in records
+                     if row["match"] == "matched"}
+    if "assembly_unverified" in matched_types:
+        matched_types.add("nuclear")
     return {"taxon": taxon, "status": status, "sources": sources, "assemblies": groups,
+            "literature_followup": [kind for kind in wanted if kind not in matched_types],
             "required_complete": all(
                 q["status"] in completed for report in sources.values() if report["required"] for q in report["queries"]
             ), "coverage_complete": not incomplete}

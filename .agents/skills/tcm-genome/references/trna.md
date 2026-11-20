@@ -8,7 +8,7 @@
 
 从 Skill 目录运行。需要 Python 3.11+ 和 Biopython，可用 `python -m pip install "biopython>=1.84,<2"` 安装。远程 GenBank 和 GWH 需要 curl，远程 NCBI 组装需要 NCBI Datasets CLI。回退需要支持 `-j` GFF3 输出的 tRNAscan-SE 2.x。植物核基因组使用真核模式，植物细胞器使用细胞器模式。处理其他类群的细胞器时先确认适用的预测模型。
 
-本机 Windows 已配置 D 盘环境时，先在同一 PowerShell 会话运行 `& 'D:\Bioinformatics\Environments\TCM-Genome-Skill\Use-TcmGenome.ps1'`。启用环境后，预测会按 `TCM_TRNASCAN_WSL_DISTRO` 调用指定的 WSL 发行版。输入和输出需放在该发行版能访问的 Windows 路径中。也可以用 `--scanner` 显式指定本机可执行文件。
+在 Windows 上通过 WSL 预测时，在当前 PowerShell 会话把 `TCM_TRNASCAN_WSL_DISTRO` 设成安装了 tRNAscan-SE 的发行版名，例如 `$env:TCM_TRNASCAN_WSL_DISTRO = 'Ubuntu'`。输入和输出可自行指定，使用该发行版能访问的 Windows 路径。直接从 Linux 或 macOS 终端运行时，在 PATH 中提供 `tRNAscan-SE`，或用 `--scanner` 指定可执行文件。
 
 ```text
 python scripts/trna.py --accession NC_006290.1 --compartment chloroplast --output ginseng-cp

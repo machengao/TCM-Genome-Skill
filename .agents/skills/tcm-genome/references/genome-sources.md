@@ -35,6 +35,14 @@ python scripts/genome_sources.py taxa.json --require ENA --output genome-report.
 - [NCBI Datasets](https://www.ncbi.nlm.nih.gov/datasets/docs/v2/how-tos/genomes/get-genome-metadata/) 和 [ENA Portal](https://ena-docs.readthedocs.io/en/latest/retrieval/programmatic-access.html) 读组装元数据。GWH 用[公开组装目录](https://ngdc.cncb.ac.cn/gwh/browse/assembly)的网页查询发现登录号，再用[官方组装详情 API](https://ngdc.cncb.ac.cn/gwh/api_documents)核对直接提交记录。网页查询格式变更时按查询失败处理。
 - [JGI Data Portal API](https://files.jgi.doe.gov/apidoc/) 提供 MycoCosm、Phytozome、PhycoCosm 和 IMG 的数据集查询。PhycoCosm 文件接口无结果时，再查[公开发布目录](https://phycocosm.jgi.doe.gov/phycocosm/home/releases)。数据集线索须回查平台或论文，确认有对应基原的核基因组和组装版本后再计为组装。
 
+## 从原始论文追溯组装
+
+- 完成必要的数据库检索和适用的类群补查后，按物种、按请求的基因组类型处理 `literature_followup`。脚本用该字段标记尚无匹配记录的类型。随后用文献检索工具或人工追溯。常规全基因组命中可用于核参考筛选，仍需按序列清单核对组装成分。保留库查询失败和访问受限的原状态。
+- 用接受学名、已核实异名和目标类型定位原始论文。优先查首次发布组装或明确说明所用参考版本的研究。从方法、数据可用性声明、补充材料或项目主页追到登录号及版本、公开组装文件和配套注释。论文复用既有组装时，沿引用追到原始发布记录。
+- 核对物种、品种或菌株、核或细胞器类型、组装范围和公开获取入口。先按样本匹配度、数据可得性和组装质量筛选。在这些条件相近时，可优先参考相对影响因子更高的期刊论文。若报告具体影响因子，同时注明年份与可核实来源。
+- 结果中记录论文题名、年份、DOI 或 PMID、所用样本、组装或序列版本、公开下载页及注释状态。已验证可公开获取的组装纳入候选目录，保留论文和数据两端的出处。仅有论文描述、原始读段或局部序列时，如实标明能获取的数据及限制。近缘物种可作为比较参考，记录其与目标基原的关系。
+- 用户要求继续处理时，受支持的登录号可进入批量下载。论文或项目库直接提供文件时，记录对应版本的下载来源，获取后按本地 FASTA 和配套 GFF3 流程处理。
+
 ## 核对并交付
 
 - 逐库保留检索词、结果和失败状态。`hit` 表示检得名称匹配的组装，`candidate` 表示有待核资料，`no_hit` 表示相应查询成功完成且未命中。`error`、`access_required`、`rate_limited`、`manual_required` 和 `not_run` 都表示覆盖有缺口。报告可在部分来源失败时保留已取得的数据。
@@ -43,11 +51,10 @@ python scripts/genome_sources.py taxa.json --require ENA --output genome-report.
 
 ## 批量下载参考
 
-从组装检索结果选定版本化登录号。对已确认跨库配对的同一参考选一个下载入口，保留其他库的出处。用户明确要求下载时，在同一个 PowerShell 会话启用 D 盘环境，再从 Skill 目录执行：
+从组装检索结果选定版本化登录号。对已确认跨库配对的同一参考选一个下载入口，保留其他库的出处。用户明确要求下载时，从 Skill 目录执行，并用 `--output` 指定本机可写的存储目录。下载 NCBI 组装包时，当前终端需能找到 `datasets`。
 
-```powershell
-& 'D:\Bioinformatics\Environments\TCM-Genome-Skill\Use-TcmGenome.ps1'
-python scripts/genome_download.py --accession-file selected-accessions.txt --output D:\Bioinformatics\Databases\PublicDatasets
+```sh
+python scripts/genome_download.py --accession-file selected-accessions.txt --output reference-cache
 ```
 
 清单每行写一个登录号，也可直接把登录号作为位置参数传入。每个已完成的参考保存到输出目录下的同名子目录，配有资产清单和 SHA-256。再次运行时复用原目录的已完成参考，失败项可重试。控制台会显示本次 JSON 进度报告的位置，也可用 `--report` 指定新路径。
