@@ -1,13 +1,17 @@
 ---
 name: tcm-genome
-description: 对照药典提取药材基原和中成药处方，检索核基因组与细胞器基因组，从配套注释提取 tRNA 或在缺少可用注释时预测。也用于核对药用植物基因和天然产物生物合成证据。
+description: 对照药典提取药材基原和中成药处方，检索核基因组与细胞器基因组，用 tRNAscan-SE 预测 tRNA、重建成熟序列并建立 tRF 与 t-half 候选库。也用于核对药用植物基因和天然产物生物合成证据。
 ---
 
 # 药用植物基因检索
 
 ## 提取 tRNA
 
-收到查找或提取 tRNA 的请求时，先确认药典基原及目标分区，再按[从注释提取 tRNA](references/trna.md)逐套处理。已有可用 tRNA 注释的参考直接提取。缺少可用注释时才对对应参考运行 tRNAscan-SE。
+收到查找或提取 tRNA 的请求时，先确认药典基原及目标分区，再按[tRNA 位点预测](references/trna.md)对每套基因组运行 tRNAscan-SE。发布注释作为对照保留。
+
+收到生成成熟 tRNA 的请求时，优先复用已有的 tRNAscan-SE 预测目录。按[成熟 tRNA 重建](references/mature-trna.md)核对剪接、受体茎和末端，交付 RNA FASTA、逐碱基来源和可浏览的位点报告。
+
+建立片段库时，从预测来源的成熟序列包运行[tRF 与 t-half 建库](references/trna-fragments.md)，交付带母体坐标的分类表和去重序列。
 
 ## 从药典生成检索清单
 

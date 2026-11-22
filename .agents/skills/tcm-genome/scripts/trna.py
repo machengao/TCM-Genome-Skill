@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract annotated tRNA sequences and predict only when annotation has no usable loci."""
+"""Predict tRNA loci with tRNAscan-SE and archive published features for comparison."""
 
 import argparse
 from collections import defaultdict
@@ -177,7 +177,7 @@ def predict(fasta, excluded, compartment, scanner, threads, work, wsl_distro):
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     except FileNotFoundError as exc:
         raise ValueError(
-            f"No usable tRNA annotation was found, and the prediction executable is unavailable: {command[0]}"
+            f"The required prediction executable is unavailable: {command[0]}"
         ) from exc
     sys.stderr.buffer.write(result.stdout)
     result.check_returncode()
@@ -185,6 +185,22 @@ def predict(fasta, excluded, compartment, scanner, threads, work, wsl_distro):
             and gff.stat().st_size == 0 and table.stat().st_size == 0):
         return [], gff
     return fasta_extract(source, gff_loci(gff), set()), gff
+
+
+def write_loci(deliverable, rows):
+    with (deliverable / "trna.tsv").open("w", newline="", encoding="utf-8") as handle:
+        columns = ["id", "seq_id", "annotation_id", "location", "strand", "spans", "label",
+                   "anticodon", "status", "evidence"]
+        writer = csv.DictWriter(handle, columns, delimiter="\t", extrasaction="ignore")
+        writer.writeheader()
+        for i, row in enumerate(rows, 1):
+            row["id"] = f"trna_{i:05d}"
+            writer.writerow({**row, "spans": json.dumps(row["spans"])})
+    records = [SeqRecord(Seq(row["sequence"]), id=row["id"], description=row["seq_id"])
+               for row in rows if row["sequence"]]
+    with (deliverable / "trna.fasta").open("w", encoding="ascii") as handle:
+        SeqIO.write(records, handle, "fasta")
+    return len(records)
 
 
 def run(args, work):
@@ -234,50 +250,35 @@ def run(args, work):
         rows = fasta_extract(fasta, gff_loci(annotation), excluded) if annotation else []
     for row in rows:
         row["evidence"] = "database_annotation"
-    predicted_gff = None
-    if any(row["status"] == "usable" for row in rows):
-        route = "database_annotation"
-    else:
-        predicted, predicted_gff = predict(
-            fasta, excluded, args.compartment, args.scanner, args.threads, work, args.wsl_distro
-        )
-        for row in predicted:
-            row["evidence"] = "trnascan_prediction"
-        rows.extend(predicted)
-        route = "trnascan_prediction"
-
-    # Write complete outputs in staging so a failed download or parser cannot publish an empty result.
+    predicted, predicted_gff = predict(
+        fasta, excluded, args.compartment, args.scanner, args.threads, work, args.wsl_distro
+    )
+    for row in predicted:
+        row["evidence"] = "trnascan_prediction"
     deliverable = work / "results"
     deliverable.mkdir()
-    with (deliverable / "trna.tsv").open("w", newline="", encoding="utf-8") as handle:
-        columns = ["id", "seq_id", "annotation_id", "location", "strand", "spans", "label",
-                   "anticodon", "status", "evidence"]
-        writer = csv.DictWriter(handle, columns, delimiter="\t", extrasaction="ignore")
-        writer.writeheader()
-        for i, row in enumerate(rows, 1):
-            row["id"] = f"trna_{i:05d}"
-            writer.writerow({**row, "spans": json.dumps(row["spans"])})
-    records = [SeqRecord(Seq(row["sequence"]), id=row["id"], description=row["seq_id"])
-               for row in rows if row["sequence"]]
-    with (deliverable / "trna.fasta").open("w", encoding="ascii") as handle:
-        SeqIO.write(records, handle, "fasta")
+    extracted = write_loci(deliverable, predicted)
     fingerprints = {}
     for role, path in (("genbank", gb), ("fasta", None if gb else fasta), ("gff", annotation), ("sequence_report", report)):
         if path:
             with path.open("rb") as handle:
                 fingerprints[role] = file_digest(handle, "sha256").hexdigest()
-    summary = dict(accession=args.accession, compartment=args.compartment, route=route, loci=len(rows),
-                   extracted=len(records), input_type="genbank" if gb else "fasta+gff" if annotation else "fasta",
+    summary = dict(accession=args.accession, compartment=args.compartment, route="trnascan_prediction", loci=len(predicted), reference_loci=len(rows),
+                   extracted=extracted, input_type="genbank" if gb else "fasta+gff" if annotation else "fasta",
                    excluded_ids=sorted(excluded), input_sha256=fingerprints,
                    input_paths=[str(path) for path in input_paths])
-    if predicted_gff:
-        summary["scanner"] = args.scanner
-        summary["prediction_loci"] = len(predicted)
-        if args.wsl_distro:
-            summary["wsl_distro"] = args.wsl_distro
-        summary["model"] = "-E" if args.compartment == "nuclear" else "-O"
-        predicted_gff.replace(deliverable / "prediction.gff")
-        (work / "prediction.txt").replace(deliverable / "prediction.txt")
+    if gb or annotation:
+        ref_dir = deliverable / "reference_annotation"
+        ref_dir.mkdir()
+        ref_meta = dict(summary, route="database_annotation", loci=len(rows), extracted=write_loci(ref_dir, rows))
+        (ref_dir / "summary.json").write_text(json.dumps(ref_meta, indent=2), encoding="utf-8")
+    summary["scanner"] = args.scanner
+    summary["prediction_loci"] = len(predicted)
+    if args.wsl_distro:
+        summary["wsl_distro"] = args.wsl_distro
+    summary["model"] = "-E" if args.compartment == "nuclear" else "-O"
+    predicted_gff.replace(deliverable / "prediction.gff")
+    (work / "prediction.txt").replace(deliverable / "prediction.txt")
     (deliverable / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     deliverable.rename(args.output)
     print(json.dumps(summary))

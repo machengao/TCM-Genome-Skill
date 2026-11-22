@@ -1,12 +1,12 @@
-# 从注释提取 tRNA
+# 用 tRNAscan-SE 预测 tRNA
 
 1. 按[药典基原提取与归并](pharmacopoeia.md)查明基原。按[多库组装检索](genome-sources.md)查找用户指定的核、叶绿体或线粒体参考，核对选用版本、材料和组装成分。用户只要组装目录时保留元数据。用户要求 tRNA 时下载所选参考及配套注释。
 2. 每套基因组独立运行脚本。NCBI 细胞器序列登录号通过 EFetch 取 GenBank 记录。版本化的 NCBI 组装登录号通过 Datasets 取 FASTA、GFF3 和序列报告。GWH 登录号通过组装详情获取 FASTA 和 GFF3。也支持本地 GenBank 或同一组装的 FASTA/GFF3。
-3. 有任何可用 tRNA 原注释的参考走坐标提取。不精确、缺链方向或假基因标签的条目留在表中。版本、序列 ID、注释坐标或下载不一致时处理错误并核对来源。只有注释缺失或已解析且没有可用 tRNA 位点才启动预测。疑似注释不全但已含可用位点时，如实报告原注释范围。
+3. 每套选定参考均运行 tRNAscan-SE。发布注释按原坐标另存为对照，保留缺链或假基因等状态。
 
 ## 命令
 
-从 Skill 目录运行。需要 Python 3.11+ 和 Biopython，可用 `python -m pip install "biopython>=1.84,<2"` 安装。远程 GenBank 和 GWH 需要 curl，远程 NCBI 组装需要 NCBI Datasets CLI。回退需要支持 `-j` GFF3 输出的 tRNAscan-SE 2.x。植物核基因组使用真核模式，植物细胞器使用细胞器模式。处理其他类群的细胞器时先确认适用的预测模型。
+从 Skill 目录运行。需要 Python 3.11+ 和 Biopython，可用 `python -m pip install "biopython>=1.84,<2"` 安装。远程 GenBank 和 GWH 需要 curl，远程 NCBI 组装需要 NCBI Datasets CLI。扫描需要支持 `-j` GFF3 输出的 tRNAscan-SE 2.x。植物核基因组使用真核模式，植物细胞器使用细胞器模式。处理其他类群的细胞器时先确认适用的预测模型。
 
 在 Windows 上通过 WSL 预测时，在当前 PowerShell 会话把 `TCM_TRNASCAN_WSL_DISTRO` 设成安装了 tRNAscan-SE 的发行版名，例如 `$env:TCM_TRNASCAN_WSL_DISTRO = 'Ubuntu'`。输入和输出可自行指定，使用该发行版能访问的 Windows 路径。直接从 Linux 或 macOS 终端运行时，在 PATH 中提供 `tRNAscan-SE`，或用 `--scanner` 指定可执行文件。
 
@@ -22,7 +22,7 @@ python scripts/trna.py --fasta genome.fna --gff genomic.gff --compartment nuclea
 
 ## 结果和解释
 
-- `trna.tsv` 逐位点提供序列 ID、链、1-based 闭区间、名称、可用性和证据来源。`trna.fasta` 提供按转录方向、按已标注外显子拼接的 DNA 序列。保留每个独立坐标，包括重复拷贝和跨区室的相同序列。
-- `summary.json` 记录执行路径和输入校验值。预测另保留工具原始表和 GFF3。直接提取的是发布的注释，预测走计算证据。成熟 RNA 末端加工、CCA、RNA 编辑和实验确认在后续步骤单列。
+- `trna.tsv` 逐位点提供序列 ID、链、1-based 闭区间、名称、可用性和证据来源。`trna.fasta` 提供按转录方向、按扫描预测外显子拼接的 DNA 序列。保留每个独立坐标，包括重复拷贝和跨区室的相同序列。
+- `summary.json` 记录执行路径和输入校验值。预测另保留工具原始表和 GFF3。配套注释保存在独立的 `reference_annotation/` 目录。成熟 RNA 末端加工、CCA、RNA 编辑和实验确认在后续步骤单列。
 - tRNAscan-SE 成功完成且明确报告零命中时，保留零条预测的结果与摘要。来源 GFF3 仍按正常规则校验。
-- 保留注释位点数和实际导出序列数。原数据库没有标记的残缺位点或误注释仍可能被直接提取，人工复核结果应独立记录。
+- 分别报告扫描位点数、可导出预测序列数与注释位点数。以前按注释生成的目录可用作对照；已有独立预测目录可复用。

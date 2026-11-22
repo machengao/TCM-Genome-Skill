@@ -1,6 +1,6 @@
 # TCM-Genome-Skill
 
-An Agent Skill and a set of command-line tools for following Chinese Pharmacopoeia entries from source organisms to public genome references. The workflow also extracts or predicts tRNA loci from selected references and helps trace published evidence for genes involved in natural product biosynthesis.
+An Agent Skill and a set of command-line tools for following Chinese Pharmacopoeia entries from source organisms to public genome references. The workflow also predicts tRNA loci and builds mature tRNA fragment libraries from selected references and helps trace published evidence for genes involved in natural product biosynthesis.
 
 ## What it does
 
@@ -9,7 +9,9 @@ An Agent Skill and a set of command-line tools for following Chinese Pharmacopoe
 - **Find genome references.** Search NCBI and GWH for each taxon, plus any sources explicitly requested. Request nuclear assemblies, mitochondrial genomes, and chloroplast genomes separately. For nuclear assemblies, the workflow can consult sources such as ENA, MycoCosm, or Phytozome when the primary sources yield no confirmed match.
 - **Follow up in the literature.** The search report lists genome types that still need a reference under `literature_followup`. Review the original papers and trace their assemblies to accession records or public files. When the available assemblies are comparably suitable, journal impact can help prioritize which studies to review first.
 - **Download selected references.** Save reusable bundles by accession, with checksums and a local progress report. The batch downloader starts with one transfer and adjusts concurrency based on observed throughput, up to four downloads by default.
-- **Extract or predict tRNA loci.** Use compatible database annotations when they contain usable tRNA loci. When there are none, run tRNAscan-SE and retain its original outputs. A successful scan with zero hits produces a valid zero-result report.
+- **Predict tRNA loci.** Run tRNAscan-SE on each selected genome and retain its original outputs. Archive database annotations separately for comparison. A successful scan with zero hits produces a valid zero-result report.
+- **Reconstruct mature tRNAs.** Reuse a previous locus run, align spliced sequences to the tRNA covariance model, record annotation differences, and export an RNA FASTA, per-base coordinate map and browsable report. See the [maturation workflow](.agents/skills/tcm-genome/references/mature-trna.md).
+- **Build fragment libraries.** Enumerate 19–25 nt windows and paired halves at five structurally mapped anticodon-loop bonds. Export occurrence tables and sequence-deduplicated FASTA files. See the [fragment workflow](.agents/skills/tcm-genome/references/trna-fragments.md).
 
 ## Use with an AI agent
 
@@ -19,7 +21,7 @@ Open the repository root as your Codex workspace. Codex discovers the skill unde
 
 > $tcm-genome Find nuclear, mitochondrial, and chloroplast genome references for ginseng. List the accession versions and evidence for each compartment.
 
-> $tcm-genome Extract tRNA loci from the ginseng chloroplast reference NC_006290.1. Use the published annotation where available and run tRNAscan-SE if no usable tRNA annotations are present.
+> $tcm-genome Extract tRNA loci from the ginseng chloroplast reference NC_006290.1. Run tRNAscan-SE and retain the published annotation for comparison.
 
 > $tcm-genome Find the published evidence for ADS and CYP71AV1 in artemisinin biosynthesis in Artemisia annua. Include traceable gene identifiers and the reactions supported by each source.
 
